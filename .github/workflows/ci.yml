@@ -1,0 +1,80 @@
+name: CI
+
+# What this workflow asserts about djgpp-platform: on a Linux x86_64 machine, mcpp builds
+# examples/hello for i586-dos-djgpp with DJGPP's GCC (the row's GCC target names the payload), the
+# artefact is a go32 DOS executable, and `mcpp run` runs it under DOSBox Staging through dirun with
+# its arguments, its output and its status (42).
+#
+# The row's GCC target is read by mcpp 2026.11.13.1 and later. A dispatch, or the repository
+# variable MCPP_SOURCE_REF, names a branch of mcpp that the released mcpp builds and that is then
+# used.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      mcpp_ref:
+        description: "Branch of mcpp-community/mcpp to build and use (empty = the released mcpp)"
+        required: false
+        default: ""
+
+env:
+  MCPP_SOURCE_REF: ${{ github.event.inputs.mcpp_ref || vars.MCPP_SOURCE_REF || '' }}
+  MCPP_VERSION: 2026.11.13.1
+  XLINGS_VERSION: v2026.10.26.1
+  XLINGS_NON_INTERACTIVE: '1'
+
+jobs:
+  dos:
+    name: i586-dos-djgpp (built and run on Linux x86_64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install xlings and mcpp
+        run: |
+          set -euo pipefail
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          export PATH="$HOME/.xlings/subos/current/bin:$PATH"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          mcpp self config --mirror GLOBAL
+          if [ -n "$MCPP_SOURCE_REF" ]; then
+            src="$RUNNER_TEMP/mcpp-src"
+            git clone --quiet --depth 1 --branch "$MCPP_SOURCE_REF" https://github.com/mcpp-community/mcpp.git "$src"
+            rm -f "$src/.xlings.json"
+            ( cd "$src" && mcpp build --release )
+            built=$(find "$src/target" -type f -name mcpp -path '*/bin/*' | head -1)
+            [ -n "$built" ] || { echo "::error::mcpp did not build from $MCPP_SOURCE_REF"; exit 1; }
+            echo "$(cd "$(dirname "$built")" && pwd)" >> "$GITHUB_PATH"
+            echo "under review: $("$built" --version) (from $MCPP_SOURCE_REF)"
+          fi
+
+      - name: A DOS program, built and run
+        working-directory: examples/hello
+        run: |
+          set -euo pipefail
+          mcpp --version
+          mcpp build --target i586-dos-djgpp
+          exe=$(find target/i586-dos-djgpp -path '*bin/hello.exe' -type f | head -1)
+          file "$exe"
+          file "$exe" | grep -q 'DJGPP go32' || { echo "::error::not a go32 DOS executable"; exit 1; }
+          set +e
+          mcpp run --target i586-dos-djgpp -- one two | tee run.log
+          status=${PIPESTATUS[0]}
+          set -e
+          grep -q "hello from dos: 3 arguments" run.log && grep -q "all held" run.log \
+            || { echo "::error::the program's output"; exit 1; }
+          [ "$status" = 42 ] || { echo "::error::the status is $status, not 42"; exit 1; }
