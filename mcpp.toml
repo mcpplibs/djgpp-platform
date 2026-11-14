@@ -1,0 +1,49 @@
+# djgpp-platform: 32-bit DOS programs built by DJGPP, as a platform package (mcpp SPEC-013). The
+# row is data here, not in the engine: a program is a go32 executable (an MZ stub before a COFF
+# image) that runs under a DPMI host; its compiler is DJGPP's GCC, named by the row's GCC target
+# (`gcc-triple`), and its C library and C++ run-time are DJGPP's own. The runner is DOSBox Staging
+# through dirun's payload form: the program and the DPMI host in a directory DOSBox mounts as C:,
+# its output and status read back from the files a launcher writes.
+[package]
+namespace   = "mcpplibs"
+name        = "djgpp-platform"
+version     = "0.1.0"
+description = "32-bit DOS programs built by DJGPP: the i586-dos-djgpp row, its GCC payload, and DOSBox Staging as its runner"
+license     = "Apache-2.0"
+authors     = ["mcpplibs"]
+repo        = "https://github.com/mcpplibs/djgpp-platform"
+mcpp        = ">=2026.11.13.1"   # the row's GCC target (gcc-triple) and COFF objects
+
+[platform]
+targets   = ["i586-dos-djgpp"]
+toolchain = "gcc@12.2.0"
+
+# The runner: dirun boots the program under DOSBox Staging with the package's profile, which
+# places the program and CWSDPMI in the directory DOSBox mounts as C: and reads the program's
+# output and status back from files (DOSBox's own status is not the program's). The program's
+# arguments follow `--`.
+[platform.runner]
+cmd      = ["dirun", "--payload", "{}", "--profile", "{pkg:dosbox-staging}/dirun.toml", "--"]
+hosts    = ["linux-x86_64", "macos-aarch64", "windows-x86_64"]
+requires = ["xim:dirun@0.3.0", "xim:dosbox-staging@0.83.0"]
+
+[[platform.define]]
+triple        = "i586-dos-djgpp"
+gcc-triple    = "i586-pc-msdosdjgpp"
+object-format = "coff"
+data-model    = "ilp32"
+exe-suffix    = ".exe"
+execution     = "dos"
+standard      = false
+
+[[platform.provider]]
+serves  = ["i586-dos-djgpp"]
+pairs   = ["gcc"]
+linkage = "static"
+
+# The C library and the C++ run-time are the toolchain's (DJGPP 2.05, libstdc++ 12).
+[platform.layers]
+"kernel-abi"       = false
+"c-abi"            = false
+"c++-abi"          = false
+"compiler-runtime" = false
