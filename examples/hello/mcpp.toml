@@ -8,3 +8,4 @@ main = "src/main.c"
 
 [target.i586-dos-djgpp]
 platform = { path = "../.." }
+runner   = true
