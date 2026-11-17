@@ -3,9 +3,10 @@ name: CI
 # What this workflow asserts about djgpp-platform: on a Linux x86_64 machine, mcpp builds
 # examples/hello for i586-dos-djgpp with DJGPP's GCC (the row's GCC target names the payload), the
 # artefact is a go32 DOS executable, and `mcpp run` runs it under DOSBox Staging through dirun with
-# its arguments, its output and its status (42).
+# its arguments, a file the run delivers to its working directory, its output and its status (42).
+# The runner is off until enabled: the example enables it, and withheld it is refused.
 #
-# The row's GCC target is read by mcpp 2026.11.13.1 and later. A dispatch, or the repository
+# The row's GCC target is read by mcpp 2026.11.13.1 and later; run files by 2026.11.17.1. A dispatch, or the repository
 # variable MCPP_SOURCE_REF, names a branch of mcpp that the released mcpp builds and that is then
 # used.
 
@@ -22,7 +23,7 @@ on:
 
 env:
   MCPP_SOURCE_REF: ${{ github.event.inputs.mcpp_ref || vars.MCPP_SOURCE_REF || '' }}
-  MCPP_VERSION: 2026.11.14.1
+  MCPP_VERSION: 2026.11.17.1
   XLINGS_VERSION: v2026.10.26.1
   XLINGS_NON_INTERACTIVE: '1'
 
@@ -72,9 +73,20 @@ jobs:
           file "$exe"
           file "$exe" | grep -q 'DJGPP go32' || { echo "::error::not a go32 DOS executable"; exit 1; }
           set +e
-          mcpp run --target i586-dos-djgpp -- one two | tee run.log
+          mcpp run --target i586-dos-djgpp --file input.txt=INPUT.TXT -- one two | tee run.log
           status=${PIPESTATUS[0]}
           set -e
-          grep -q "hello from dos: 3 arguments" run.log && grep -q "all held" run.log \
-            || { echo "::error::the program's output"; exit 1; }
+          grep -q "hello from dos: 3 arguments" run.log && grep -q "input: delivered by the run" run.log \
+            && grep -q "all held" run.log || { echo "::error::the program's output"; exit 1; }
           [ "$status" = 42 ] || { echo "::error::the status is $status, not 42"; exit 1; }
+
+      - name: The runner, withheld, is refused
+        working-directory: examples/hello
+        run: |
+          set +e
+          MCPP_TARGET_I586_DOS_DJGPP_RUNNER_ENABLED=false mcpp run --target i586-dos-djgpp -- one two > /dev/null 2> refused.txt
+          status=$?
+          set -e
+          cat refused.txt
+          [ "$status" = 2 ] && grep -q 'runner-not-enabled' refused.txt \
+            || { echo "::error::expected a refusal (status 2), got $status"; exit 1; }

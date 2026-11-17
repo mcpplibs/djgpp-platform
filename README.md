@@ -18,7 +18,7 @@ mcpp run   --target i586-dos-djgpp     # run under DOSBox Staging; its output an
 | the row: COFF, `.exe`, 32-bit data model, the execution system `dos` | `[[platform.define]]` |
 | the compiler: DJGPP's GCC 12.2.0, named by the row's GCC target `i586-pc-msdosdjgpp` (xim `i586-pc-msdosdjgpp-gcc`) | `gcc-triple`, `[platform] toolchain` |
 | the C library: DJGPP 2.05, the toolchain's own | `[platform.layers]` |
-| the runner: dirun places the program and CWSDPMI (the DPMI host) in the directory DOSBox mounts as `C:` and reads the program's output and status back from files a launcher writes (xim `dosbox-staging`, `dirun`) | `[platform.runner]` |
+| the runner: dirun places the program, CWSDPMI (the DPMI host) and the files a run names (`mcpp run --file`, `[test] files`) in the directory DOSBox mounts as `C:` and reads the program's output and status back from files a launcher writes (xim `dosbox-staging` 0.83.0-2, `dirun` 0.6.0); off until a project or a machine enables it, `[target.i586-dos-djgpp] runner = true` | `[platform.runner]` |
 
 The engine knows no DOS: the row, its payload and its runner are this package's. The GCC target a
 row states is the engine's general mechanism for a cross GCC (mcpp 2026.11.13.1).
@@ -26,7 +26,13 @@ row states is the engine's general mechanism for a cross GCC (mcpp 2026.11.13.1)
 **C only.** mcpp compiles C++ as modules, which needs a GCC with module dependency scanning (14 and
 later); DJGPP's GCC is 12.2.0, and a C++ target is refused naming that.
 
-**Verified.** `examples/hello`, built with mcpp and run under DOSBox Staging 0.83.0 through dirun
-0.3.0: its arguments, a file written and read back, status 42 (0.6 s).
+**Verified.** `examples/hello`, built with mcpp 2026.11.17.1 and run under DOSBox Staging 0.83.0
+through dirun 0.6.0: its arguments, a file written and read back, a file the run delivered, status 42.
+Without the runner enabled, `mcpp run` is refused (`runner-not-enabled`, status 2).
+
+**0.2.0.** The runner takes the packages of openkal-platform's DOS row (dirun 0.6.0, dosbox-staging
+0.83.0-2), so the files a run names reach the program; and it states `enabled = false`, as the
+other runners that start a machine do. A project that ran the row with 0.1.0 adds `runner = true`
+under `[target.i586-dos-djgpp]` (or a machine adds it to its config.toml).
 
 Apache-2.0.

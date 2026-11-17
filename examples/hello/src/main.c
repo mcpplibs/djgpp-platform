@@ -1,4 +1,5 @@
-/* A DOS program built by mcpp: its arguments, a file written and read back, and its status. */
+/* A DOS program built by mcpp: its arguments, a file written and read back, a file the run
+   delivered (INPUT.TXT, when given), and its status. */
 #include <stdio.h>
 #include <string.h>
 
@@ -15,6 +16,16 @@ int main(int argc, char** argv) {
     if (!f || !fgets(back, sizeof back, f) || strcmp(back, "kept") != 0) { printf("  FAIL a file is read back\n"); ++failures; }
     if (f) fclose(f);
     remove("NOTE.TXT");
+    /* A file the run delivered to the working directory (`mcpp run --file input.txt=INPUT.TXT`). */
+    f = fopen("INPUT.TXT", "r");
+    if (f) {
+        char line[64] = {0};
+        if (fgets(line, sizeof line, f)) {
+            line[strcspn(line, "\r\n")] = 0;
+            printf("input: %s\n", line);
+        }
+        fclose(f);
+    }
     puts(failures ? "FAILED" : "all held");
     return failures ? 1 : 42;
 }

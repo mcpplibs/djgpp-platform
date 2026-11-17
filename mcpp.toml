@@ -7,7 +7,7 @@
 [package]
 namespace   = "mcpplibs"
 name        = "djgpp-platform"
-version     = "0.1.0"
+version     = "0.2.0"
 description = "32-bit DOS programs built by DJGPP: the i586-dos-djgpp row, its GCC payload, and DOSBox Staging as its runner"
 license     = "Apache-2.0"
 authors     = ["mcpplibs"]
@@ -21,11 +21,16 @@ toolchain = "gcc@12.2.0"
 # The runner: dirun boots the program under DOSBox Staging with the package's profile, which
 # places the program and CWSDPMI in the directory DOSBox mounts as C: and reads the program's
 # output and status back from files (DOSBox's own status is not the program's). The program's
-# arguments follow `--`.
+# arguments follow `--`. The files a run names (`mcpp run --file`, `[test] files`) are placed in
+# the program's working directory: dirun 0.6.0 and the profile of dosbox-staging 0.83.0-2, the
+# runner packages of openkal-platform's DOS row. The runner starts an emulator, so it is off until
+# a project or a machine enables it (`[target.i586-dos-djgpp] runner = true`), as the other
+# machine runners are.
 [platform.runner]
 cmd      = ["dirun", "--payload", "{}", "--profile", "{pkg:dosbox-staging}/dirun.toml", "--"]
 hosts    = ["linux-x86_64", "macos-aarch64", "windows-x86_64"]
-requires = ["xim:dirun@0.3.0", "xim:dosbox-staging@0.83.0"]
+requires = ["xim:dirun@0.6.0", "xim:dosbox-staging@0.83.0-2"]
+enabled  = false
 
 [[platform.define]]
 triple        = "i586-dos-djgpp"
